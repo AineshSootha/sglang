@@ -294,6 +294,19 @@ class TestPrefillAdder(CustomTestCase):
             len(req.prefix_indices) + req.extend_range.length, 5056
         )
 
+    def test_new_request_chunk_ends_on_the_alignment_grid(self):
+        # A cached prefix can end off the alignment grid; the first chunk must
+        # still end on it (aligning only the chunk length would end at 292).
+        self.mock_token_allocator.available_size.return_value = 32768
+        adder = self.create_adder(
+            self.create_running_batch(), page_size=1, rem_chunk_tokens=200
+        )
+        req = self.create_shared_req("cached-prefix")
+        req.full_untruncated_fill_ids = list(range(1000))
+        req.prefix_indices = list(range(100))
+        adder.add_one_req(req, has_chunked_req=False, truncation_align_size=64)
+        self.assertEqual(len(req.prefix_indices) + req.extend_range.length, 256)
+
     def test_shared_admission_reserves_all_pending_requests(self):
         adder = self.create_shared_adder()
         first, second = (
